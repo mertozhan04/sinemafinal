@@ -1,41 +1,10 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Scanner;
 
-// BaseEntity Sınıfı
-abstract class BaseEntity {
-    private int id;
-    private String name;
-
-    public BaseEntity(int id, String name) {
-        this.id = id;
-        this.name = name;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public abstract String toJson();
-}
-
-// Müşteri Sınıfı
-class Musteri extends BaseEntity {
-    public Musteri(int id, String name) {
-        super(id, name);
-    }
-
-    @Override
-    public String toJson() {
-        return String.format("{\"id\": %d, \"name\": \"%s\"}", getId(), getName());
-    }
-}
-
-// Film Sınıfı
+// Film sınıfı
 class Film {
     private String ad;
     private int sure;
@@ -60,173 +29,208 @@ class Film {
     }
 
     public String toJson() {
-        return String.format("{\"ad\": \"%s\", \"sure\": %d, \"tur\": \"%s\"}", ad, sure, tur);
+        return "{\n" +
+                "  \"ad\": \"" + ad + "\",\n" +
+                "  \"sure\": " + sure + ",\n" +
+                "  \"tur\": \"" + tur + "\"\n" +
+                "}";
     }
 }
 
-// Salon Sınıfı
-class Salon extends BaseEntity {
+// Müşteri sınıfı
+class Musteri {
+    private String isim;
+    private String telefonNo;
+
+    public Musteri(String isim, String telefonNo) {
+        this.isim = isim;
+        this.telefonNo = telefonNo;
+    }
+
+    public String getIsim() {
+        return isim;
+    }
+
+    public String getTelefonNo() {
+        return telefonNo;
+    }
+}
+
+// Salon sınıfı
+class Salon {
+    private String name;
     private Film film;
     private boolean[] koltuklar;
-    private List<Musteri> musteriler;
 
-    public Salon(int id, String name, Film film, int koltukSayisi) {
-        super(id, name);
+    public Salon(String name, Film film, int koltukSayisi) {
+        this.name = name;
         this.film = film;
         this.koltuklar = new boolean[koltukSayisi];
-        this.musteriler = new ArrayList<>();
+    }
+
+    public String getName() {
+        return name;
     }
 
     public Film getFilm() {
         return film;
     }
 
-    public List<Musteri> getMusteriler() {
-        return musteriler;
+    public void bosKoltuklariGoster() {
+        System.out.print("Boş Koltuklar: ");
+        for (int i = 0; i < koltuklar.length; i++) {
+            if (!koltuklar[i]) {
+                System.out.print((i + 1) + " ");
+            }
+        }
+        System.out.println();
     }
 
-    public void musteriEkle(Musteri musteri) {
-        musteriler.add(musteri);
+    public void dolulukDurumunuGoster() {
+        System.out.println("Salon: " + name);
+        for (int i = 0; i < koltuklar.length; i++) {
+            System.out.println("Koltuk " + (i + 1) + ": " + (koltuklar[i] ? "Dolu" : "Boş"));
+        }
     }
 
     public boolean koltukRezerveEt(int koltukNo, Musteri musteri) {
-        if (koltukNo < 0 || koltukNo >= koltuklar.length || koltuklar[koltukNo]) {
-            System.out.println("Rezervasyon yapılamadı. Geçersiz veya dolu koltuk.");
+        if (koltukNo < 0 || koltukNo >= koltuklar.length) {
+            System.out.println("Geçersiz koltuk numarası.");
+            return false;
+        }
+        if (koltuklar[koltukNo]) {
+            System.out.println("Bu koltuk zaten dolu.");
             return false;
         }
         koltuklar[koltukNo] = true;
-        musteriEkle(musteri);
         System.out.println("Rezervasyon başarılı! Koltuk No: " + (koltukNo + 1));
+
+        // Rezervasyonu JSON'a kaydet
+        saveRezervasyonToJson(musteri, koltukNo);
         return true;
     }
 
-    public double dolulukOrani() {
-        int doluKoltuk = 0;
-        for (boolean koltuk : koltuklar) {
-            if (koltuk) doluKoltuk++;
-        }
-        return (doluKoltuk / (double) koltuklar.length) * 100;
-    }
+    private void saveRezervasyonToJson(Musteri musteri, int koltukNo) {
+        String json = "{\n" +
+                "  \"salon\": \"" + name + "\",\n" +
+                "  \"film\": \"" + film.getAd() + "\",\n" +
+                "  \"musteri\": {\n" +
+                "    \"isim\": \"" + musteri.getIsim() + "\",\n" +
+                "    \"telefonNo\": \"" + musteri.getTelefonNo() + "\"\n" +
+                "  },\n" +
+                "  \"koltukNo\": " + (koltukNo + 1) + "\n" +
+                "}\n";
 
-    @Override
-    public String toJson() {
-        StringBuilder json = new StringBuilder();
-        json.append("{\"id\": ").append(getId()).append(", \"name\": \"").append(getName()).append("\", ");
-        json.append("\"film\": ").append(film.toJson()).append(", ");
-        json.append("\"musteriler\": [");
-        for (int i = 0; i < musteriler.size(); i++) {
-            json.append(musteriler.get(i).toJson());
-            if (i < musteriler.size() - 1) json.append(", ");
+        try (FileWriter writer = new FileWriter("rezervasyon.json", true)) {
+            writer.write(json);
+            writer.write(",\n");
+        } catch (IOException e) {
+            System.out.println("Rezervasyon kaydedilirken bir hata oluştu: " + e.getMessage());
         }
-        json.append("]}");
-        return json.toString();
     }
 }
 
-// Main Sınıfı
+// Ana sınıf (Main)
 public class Main {
     public static void main(String[] args) {
-        List<Musteri> musteriler = new ArrayList<>();
-        List<Film> filmler = new ArrayList<>();
-        List<Salon> salonlar = new ArrayList<>();
-
         Scanner scanner = new Scanner(System.in);
+        List<Salon> salonlar = new ArrayList<>();
+        List<Film> filmler = new ArrayList<>();
 
-        // Örnek Filmler
-        filmler.add(new Film("Inception", 148, "Bilim Kurgu"));
-        filmler.add(new Film("The Dark Knight", 152, "Aksiyon"));
-        filmler.add(new Film("Titanic", 195, "Romantik"));
+        // Örnek salonlar ve filmler
+        Film inception = new Film("Inception", 148, "Bilim Kurgu/Aksiyon");
+        Film darkKnight = new Film("The Dark Knight", 152, "Aksiyon/Suç");
+        Film titanic = new Film("Titanic", 195, "Romantik/Dram");
 
-        // Örnek Salonlar
-        salonlar.add(new Salon(1, "Salon 1", filmler.get(0), 10));
-        salonlar.add(new Salon(2, "Salon 2", filmler.get(1), 8));
-        salonlar.add(new Salon(3, "Salon 3", filmler.get(2), 12));
+        filmler.add(inception);
+        filmler.add(darkKnight);
+        filmler.add(titanic);
+
+        salonlar.add(new Salon("Salon 1 - Inception -> 148 Dakika", inception, 10));
+        salonlar.add(new Salon("Salon 2 - The Dark Knight -> 152 Dakika", darkKnight, 10));
+        salonlar.add(new Salon("Salon 3 - Titanic -> 195 Dakika", titanic, 10));
+
+        // Filmleri JSON dosyasına kaydet
+        saveFilmlerToJson(filmler);
 
         while (true) {
-            System.out.println("\n1. Yeni Müşteri Ekle");
-            System.out.println("2. Yeni Film Ekle");
-            System.out.println("3. Salon Rezervasyonu Yap");
-            System.out.println("4. Salon Doluluk Oranını Gör");
-            System.out.println("5. Tüm Rezervasyonları Görüntüle");
-            System.out.println("6. Çıkış");
-            System.out.print("Seçiminizi yapın: ");
+            System.out.println("1. Salon ve Seansları Listele");
+            System.out.println("2. Seans ve Koltuk Seçimi");
+            System.out.println("3. Tüm Koltuk Doluluk Durumlarını Göster");
+            System.out.println("4. Çıkış");
+            System.out.print("Lütfen bir işlem seçiniz: ");
             int secim = scanner.nextInt();
-            scanner.nextLine(); // Enter'ı tüketmek için
 
             switch (secim) {
                 case 1:
-                    System.out.print("Müşteri Adı: ");
-                    String musteriAdi = scanner.nextLine();
-                    Musteri yeniMusteri = new Musteri(musteriler.size() + 1, musteriAdi);
-                    musteriler.add(yeniMusteri);
-                    System.out.println("Müşteri başarıyla eklendi.");
+                    System.out.println("\n[Salon ve Seanslar]");
+                    for (int i = 0; i < salonlar.size(); i++) {
+                        Salon salon = salonlar.get(i);
+                        System.out.println((i + 1) + ". " + salon.getName() + " - Film: " + salon.getFilm().getAd());
+                    }
                     break;
 
                 case 2:
-                    System.out.print("Film Adı: ");
-                    String filmAdi = scanner.nextLine();
-                    System.out.print("Film Süresi (dakika): ");
-                    int filmSure = scanner.nextInt();
-                    scanner.nextLine();
-                    System.out.print("Film Türü: ");
-                    String filmTur = scanner.nextLine();
-                    Film yeniFilm = new Film(filmAdi, filmSure, filmTur);
-                    filmler.add(yeniFilm);
-                    System.out.println("Film başarıyla eklendi.");
-                    break;
-
-                case 3:
-                    System.out.println("Salon Seçin:");
+                    System.out.println("\n[Salon Seçimi]");
                     for (int i = 0; i < salonlar.size(); i++) {
                         System.out.println((i + 1) + ". " + salonlar.get(i).getName());
                     }
-                    int salonSecim = scanner.nextInt() - 1;
-                    if (salonSecim >= 0 && salonSecim < salonlar.size()) {
-                        Salon secilenSalon = salonlar.get(salonSecim);
-                        System.out.print("Koltuk numarası: ");
+                    System.out.print("Salon numarasını seçiniz: ");
+                    int salonNo = scanner.nextInt() - 1;
+
+                    if (salonNo >= 0 && salonNo < salonlar.size()) {
+                        Salon secilenSalon = salonlar.get(salonNo);
+                        System.out.println("Seçilen Salon: " + secilenSalon.getName());
+                        System.out.println("Film: " + secilenSalon.getFilm().getAd());
+                        secilenSalon.bosKoltuklariGoster();
+
+                        System.out.print("Rezervasyon yapmak istediğiniz koltuk numarasını giriniz: ");
                         int koltukNo = scanner.nextInt() - 1;
                         scanner.nextLine();
-                        System.out.print("Müşteri Adı: ");
+
+                        System.out.print("Adınızı giriniz: ");
                         String isim = scanner.nextLine();
-                        Musteri musteri = new Musteri(musteriler.size() + 1, isim);
+                        System.out.print("Telefon numaranızı giriniz: ");
+                        String telefonNo = scanner.nextLine();
+
+                        Musteri musteri = new Musteri(isim, telefonNo);
                         secilenSalon.koltukRezerveEt(koltukNo, musteri);
                     } else {
-                        System.out.println("Geçersiz seçim.");
+                        System.out.println("Hatalı seçim. Lütfen geçerli bir salon seçiniz.");
+                    }
+                    break;
+
+                case 3:
+                    System.out.println("\n[Tüm Salonların Doluluk Durumu]");
+                    for (Salon salon : salonlar) {
+                        salon.dolulukDurumunuGoster();
+                        System.out.println("---------------------------------------------");
                     }
                     break;
 
                 case 4:
-                    System.out.println("Salon Seçin:");
-                    for (int i = 0; i < salonlar.size(); i++) {
-                        System.out.println((i + 1) + ". " + salonlar.get(i).getName());
-                    }
-                    int dolulukSecim = scanner.nextInt() - 1;
-                    if (dolulukSecim >= 0 && dolulukSecim < salonlar.size()) {
-                        Salon secilenSalon = salonlar.get(dolulukSecim);
-                        System.out.printf("Doluluk Oranı: %.2f%%\n", secilenSalon.dolulukOrani());
-                    } else {
-                        System.out.println("Geçersiz seçim.");
-                    }
-                    break;
-
-                case 5:
-                    System.out.println("[Tüm Rezervasyonlar]");
-                    for (Salon salon : salonlar) {
-                        System.out.println("Salon: " + salon.getName());
-                        for (Musteri musteri : salon.getMusteriler()) {
-                            System.out.println("- Müşteri: " + musteri.getName());
-                        }
-                    }
-                    break;
-
-                case 6:
                     System.out.println("Çıkış yapılıyor...");
                     scanner.close();
                     return;
 
                 default:
-                    System.out.println("Geçersiz seçim.");
+                    System.out.println("Hatalı seçim. Lütfen tekrar deneyin.");
             }
+        }
+    }
+
+    private static void saveFilmlerToJson(List<Film> filmler) {
+        try (FileWriter writer = new FileWriter("filmler.json")) {
+            writer.write("[\n");
+            for (int i = 0; i < filmler.size(); i++) {
+                writer.write(filmler.get(i).toJson());
+                if (i < filmler.size() - 1) {
+                    writer.write(",\n");
+                }
+            }
+            writer.write("\n]");
+        } catch (IOException e) {
+            System.out.println("Filmler kaydedilirken bir hata oluştu: " + e.getMessage());
         }
     }
 }
